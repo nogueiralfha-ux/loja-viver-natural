@@ -507,7 +507,7 @@ export default function App() {
                 Descubra em menos de 2 minutos o nível de desgaste das suas articulações e como está a sua mobilidade atual através do nosso quiz exclusivo.
               </p>
               <a 
-                href="https://voraxmart.shop/descubrasuamobilidade/" 
+                href="https://teste-da-idade-articular-2.onrender.com/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-3 px-10 py-5 bg-green-600 hover:bg-green-500 text-white font-black rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 hover:shadow-green-200"
