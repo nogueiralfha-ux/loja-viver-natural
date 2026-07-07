@@ -18,7 +18,13 @@ import {
   CreditCard,
   Truck,
   ClipboardCheck,
-  MessageCircle
+  MessageCircle,
+  Settings,
+  Edit2,
+  Trash,
+  LogOut,
+  Copy,
+  Check
 } from 'lucide-react';
 
 // --- CONFIGURAÇÕES DA LOJA ---
@@ -192,6 +198,178 @@ const PRODUCTS = [
 ];
 
 export default function App() {
+  // Estados para Configuração da Loja Dinâmica
+  const [storeConfig, setStoreConfig] = useState(() => {
+    const saved = localStorage.getItem('voraxmart_config');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return {
+      logoUrl: "https://i.ibb.co/NnWkBsz6/logo-da-loja-voraxmart.png",
+      phone: "5516997327255",
+      shippingCost: 25.50
+    };
+  });
+
+  const [products, setProducts] = useState<any[]>(() => {
+    const saved = localStorage.getItem('voraxmart_products');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return PRODUCTS;
+  });
+
+  // Estados Administrativos
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('voraxmart_is_admin') === 'true';
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Modais de edição/criação de produto
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    originalPrice: 0,
+    price: 0,
+    rating: 5,
+    category: 'Novidade',
+    imageUrl: ''
+  });
+
+  // Modal de edição de configs gerais
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [configForm, setConfigForm] = useState({
+    logoUrl: storeConfig.logoUrl,
+    phone: storeConfig.phone,
+    shippingCost: storeConfig.shippingCost
+  });
+
+  // Modal para exibir o JSON gerado
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginEmail.trim().toLowerCase() === 'nogueiralfha@gmail.com' && loginPassword === 'missionario405') {
+      setIsAdmin(true);
+      localStorage.setItem('voraxmart_is_admin', 'true');
+      setIsLoginModalOpen(false);
+      setLoginEmail('');
+      setLoginPassword('');
+      setLoginError('');
+      setNotification("Login efetuado com sucesso!");
+      setTimeout(() => setNotification(null), 3000);
+    } else {
+      setLoginError("E-mail ou senha incorretos.");
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem('voraxmart_is_admin');
+    setNotification("Sessão encerrada.");
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleOpenAddProduct = () => {
+    setEditingProduct(null);
+    setProductForm({
+      name: '',
+      description: '',
+      originalPrice: 0,
+      price: 0,
+      rating: 5,
+      category: 'Novidade',
+      imageUrl: 'https://placehold.co/400x400/f8fafc/cbd5e1?text=Novo+Produto'
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleOpenEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      description: product.description,
+      originalPrice: product.originalPrice,
+      price: product.price,
+      rating: product.rating,
+      category: product.category,
+      imageUrl: product.imageUrl
+    });
+    setIsProductModalOpen(true);
+  };
+
+  const handleDeleteProduct = (productId: number) => {
+    if (window.confirm("Deseja realmente excluir este produto?")) {
+      const updated = products.filter(p => p.id !== productId);
+      setProducts(updated);
+      localStorage.setItem('voraxmart_products', JSON.stringify(updated));
+      setNotification("Produto excluído com sucesso!");
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  const handleSaveProduct = (e: React.FormEvent) => {
+    e.preventDefault();
+    let updatedProducts;
+    if (editingProduct) {
+      updatedProducts = products.map(p => p.id === editingProduct.id ? { ...p, ...productForm } : p);
+      setNotification("Produto atualizado com sucesso!");
+    } else {
+      const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
+      const newProduct = {
+        id: newId,
+        ...productForm
+      };
+      updatedProducts = [...products, newProduct];
+      setNotification("Produto adicionado com sucesso!");
+    }
+    setProducts(updatedProducts);
+    localStorage.setItem('voraxmart_products', JSON.stringify(updatedProducts));
+    setIsProductModalOpen(false);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStoreConfig(configForm);
+    localStorage.setItem('voraxmart_config', JSON.stringify(configForm));
+    setIsConfigModalOpen(false);
+    setNotification("Configurações atualizadas com sucesso!");
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleGenerateCode = () => {
+    const fullCode = {
+      PRODUCTS: products,
+      CONFIG: storeConfig
+    };
+    setGeneratedCode(JSON.stringify(fullCode, null, 2));
+    setIsCodeModalOpen(true);
+    setCopiedCode(false);
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(generatedCode);
+    setCopiedCode(true);
+    setNotification("Código de atualização copiado!");
+    setTimeout(() => setNotification(null), 2000);
+  };
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -352,7 +530,7 @@ export default function App() {
     message += `Aguardando link de pagamento (Mercado Pago / PIX)!`;
 
     // Número de WhatsApp da Loja
-    const numeroLoja = "5516997327255"; 
+    const numeroLoja = storeConfig.phone; 
     const whatsappUrl = `https://wa.me/${numeroLoja}?text=${message}`;
     
     // Abre o WhatsApp com os dados do cliente
@@ -368,7 +546,7 @@ export default function App() {
     message += `*E-mail:* ${newsletterEmail}%0A%0A`;
     message += `(Dica: Salve este e-mail na sua planilha de contatos para futuras campanhas).`;
 
-    const numeroLoja = "5516997327255"; 
+    const numeroLoja = storeConfig.phone; 
     const whatsappUrl = `https://wa.me/${numeroLoja}?text=${message}`;
     
     window.open(whatsappUrl, '_blank');
@@ -407,14 +585,64 @@ export default function App() {
         </div>
       )}
 
+      {/* --- ADMIN PANEL BAR --- */}
+      {isAdmin && (
+        <div className="bg-slate-900 text-slate-100 py-2.5 px-4 text-xs font-semibold flex justify-between items-center sticky top-0 z-50 shadow-md">
+          <div className="flex items-center space-x-4">
+            <span className="bg-green-500 text-slate-950 px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[10px]">Administrador</span>
+            <span>nogueiralfha@gmail.com</span>
+          </div>
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <button 
+              onClick={handleOpenAddProduct}
+              className="bg-green-600 hover:bg-green-500 text-white px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center space-x-1"
+            >
+              <Plus className="h-3 w-3" />
+              <span className="hidden sm:inline">Adicionar Produto</span>
+              <span className="sm:hidden">Novo</span>
+            </button>
+            <button 
+              onClick={() => {
+                setConfigForm({
+                  logoUrl: storeConfig.logoUrl,
+                  phone: storeConfig.phone,
+                  shippingCost: storeConfig.shippingCost
+                });
+                setIsConfigModalOpen(true);
+              }}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center space-x-1"
+            >
+              <Settings className="h-3 w-3" />
+              <span className="hidden sm:inline">Configurações</span>
+              <span className="sm:hidden">Configs</span>
+            </button>
+            <button 
+              onClick={handleGenerateCode}
+              className="bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center space-x-1"
+            >
+              <Copy className="h-3 w-3" />
+              <span className="hidden sm:inline">Salvar Código</span>
+              <span className="sm:hidden">Código</span>
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded transition-colors cursor-pointer flex items-center space-x-1"
+            >
+              <LogOut className="h-3 w-3" />
+              <span>Sair</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- HEADER --- */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="bg-white shadow-sm sticky top-[44px] z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             {/* Logo */}
             <div className="flex items-center space-x-2">
-              {LOGO_URL ? (
-                <img src={LOGO_URL} alt="Voraxmart Logo" className="h-16 w-auto object-contain drop-shadow-sm" />
+              {storeConfig.logoUrl ? (
+                <img src={storeConfig.logoUrl} alt="Voraxmart Logo" className="h-16 w-auto object-contain drop-shadow-sm" />
               ) : (
                 <>
                   <div className="bg-green-600 p-2 rounded-lg">
@@ -630,7 +858,7 @@ export default function App() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {PRODUCTS.map((product) => (
+            {products.map((product) => (
               <div key={product.id} className="bg-white rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 flex flex-col group" id={`product-${product.id}`}>
                 
                 {/* Imagem do Produto */}
@@ -669,6 +897,24 @@ export default function App() {
                     <ShoppingCart className="h-5 w-5" />
                     <span>Adicionar</span>
                   </button>
+                  {isAdmin && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleOpenEditProduct(product)}
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                        <span>Editar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product.id)}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span>Excluir</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -722,6 +968,7 @@ export default function App() {
               <li><a href="#home" className="hover:text-green-400 transition-colors">Home</a></li>
               <li><a href="#produtos" className="hover:text-green-400 transition-colors">Produtos</a></li>
               <li><a href="#beneficios" className="hover:text-green-400 transition-colors">Sobre Nós</a></li>
+              <li><button onClick={() => setIsLoginModalOpen(true)} className="hover:text-green-400 transition-colors cursor-pointer text-left">Painel Administrativo</button></li>
             </ul>
           </div>
 
@@ -730,8 +977,8 @@ export default function App() {
             <ul className="space-y-2">
               <li>
                 <span className="text-slate-400">WhatsApp:</span>{' '}
-                <a href="https://wa.me/5516997327255" target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 font-medium transition-colors">
-                  (16) 99732-7255
+                <a href={`https://wa.me/${storeConfig.phone}`} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:text-green-400 font-medium transition-colors">
+                  {storeConfig.phone.length > 10 ? storeConfig.phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '+$1 ($2) $3-$4') : storeConfig.phone}
                 </a>
               </li>
               <li>
@@ -959,7 +1206,7 @@ export default function App() {
 
       {/* --- BOTÃO FLUTUANTE WHATSAPP --- */}
       <a 
-        href="https://wa.me/5516997327255?text=Olá,%20estou%20no%20site%20da%20Voraxmart%20e%20gostaria%20de%20tirar%20uma%20dúvida!" 
+        href={`https://wa.me/${storeConfig.phone}?text=Olá,%20estou%20no%20site%20da%20Voraxmart%20e%20gostaria%20de%20tirar%20uma%20dúvida!`} 
         target="_blank" 
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-40 bg-green-500 hover:bg-green-400 text-white p-4 rounded-full shadow-2xl transition-transform transform hover:scale-110 flex items-center justify-center group"
@@ -972,6 +1219,312 @@ export default function App() {
           Dúvidas? Fale connosco!
         </span>
       </a>
+
+      {/* ================= MODAL LOGIN ADMINISTRADOR ================= */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => {
+                setIsLoginModalOpen(false);
+                setLoginEmail('');
+                setLoginPassword('');
+                setLoginError('');
+              }}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Lock className="text-green-600 h-6 w-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800">Acesso Administrativo</h3>
+              <p className="text-sm text-slate-500">Faça login para gerenciar produtos e configurações.</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">E-mail</label>
+                <input 
+                  type="email" 
+                  value={loginEmail} 
+                  onChange={(e) => setLoginEmail(e.target.value)} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="nogueiralfha@gmail.com" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Senha</label>
+                <input 
+                  type="password" 
+                  value={loginPassword} 
+                  onChange={(e) => setLoginPassword(e.target.value)} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="••••••••" 
+                />
+              </div>
+
+              {loginError && (
+                <p className="text-xs font-semibold text-red-600 bg-red-50 p-2 rounded-lg text-center">{loginError}</p>
+              )}
+
+              <button 
+                type="submit" 
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg transition-colors cursor-pointer text-sm shadow-md"
+              >
+                Entrar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL ADICIONAR / EDITAR PRODUTO ================= */}
+      {isProductModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-100 my-8 animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsProductModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-slate-800 mb-4">
+              {editingProduct ? "Editar Produto" : "Adicionar Novo Produto"}
+            </h3>
+
+            <form onSubmit={handleSaveProduct} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Nome do Produto</label>
+                <input 
+                  type="text" 
+                  value={productForm.name} 
+                  onChange={(e) => setProductForm({...productForm, name: e.target.value})} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="Ex: Condrol Dimalex - 1 Unidade" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Descrição</label>
+                <textarea 
+                  value={productForm.description} 
+                  onChange={(e) => setProductForm({...productForm, description: e.target.value})} 
+                  required 
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="Ex: Tratamento básico para 1 mês."
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Preço Original (Sem desconto)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={productForm.originalPrice || ''} 
+                    onChange={(e) => setProductForm({...productForm, originalPrice: parseFloat(e.target.value) || 0})} 
+                    required 
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                    placeholder="247.00" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Preço de Venda (Com desconto)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={productForm.price || ''} 
+                    onChange={(e) => setProductForm({...productForm, price: parseFloat(e.target.value) || 0})} 
+                    required 
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                    placeholder="197.00" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Avaliação (1 a 5 estrelas)</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    min="1"
+                    max="5"
+                    value={productForm.rating || ''} 
+                    onChange={(e) => setProductForm({...productForm, rating: parseFloat(e.target.value) || 5})} 
+                    required 
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                    placeholder="5.0" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Categoria (Etiqueta)</label>
+                  <select 
+                    value={productForm.category} 
+                    onChange={(e) => setProductForm({...productForm, category: e.target.value})} 
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white"
+                  >
+                    <option value="Básico">Básico</option>
+                    <option value="Mais Vendido">Mais Vendido</option>
+                    <option value="Custo-Benefício">Custo-Benefício</option>
+                    <option value="Avançado">Avançado</option>
+                    <option value="Super Promo">Super Promo</option>
+                    <option value="Novidade">Novidade</option>
+                    <option value="Produto Digital">Produto Digital (Sem frete)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">URL da Imagem do Produto</label>
+                <input 
+                  type="text" 
+                  value={productForm.imageUrl} 
+                  onChange={(e) => setProductForm({...productForm, imageUrl: e.target.value})} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="https://i.ibb.co/..." 
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL EDITAR CONFIGURAÇÕES GERAIS ================= */}
+      {isConfigModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsConfigModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-slate-800 mb-4">Configurações Gerais da Loja</h3>
+
+            <form onSubmit={handleSaveConfig} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">URL do Logo da Loja</label>
+                <input 
+                  type="text" 
+                  value={configForm.logoUrl} 
+                  onChange={(e) => setConfigForm({...configForm, logoUrl: e.target.value})} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="https://i.ibb.co/..." 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Número de WhatsApp (Com DDI e DDD, apenas números)</label>
+                <input 
+                  type="text" 
+                  value={configForm.phone} 
+                  onChange={(e) => setConfigForm({...configForm, phone: e.target.value})} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="5516997327255" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Valor Padrão do Frete (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={configForm.shippingCost || ''} 
+                  onChange={(e) => setConfigForm({...configForm, shippingCost: parseFloat(e.target.value) || 0})} 
+                  required 
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white" 
+                  placeholder="25.50" 
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsConfigModalOpen(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-lg text-sm transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors cursor-pointer shadow-md"
+                >
+                  Salvar Configurações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL GERAR CÓDIGO PERMANENTE ================= */}
+      {isCodeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative border border-slate-100 flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsCodeModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-slate-800">Atualizar Site Permanentemente</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Copie o bloco de código abaixo e envie para o assistente Gemini (Antigravity) no chat, dizendo: 
+                <strong className="text-green-700"> "Atualize os produtos com este código"</strong>. 
+                Eu farei a gravação permanente no código-fonte no GitHub para todos os clientes!
+              </p>
+            </div>
+
+            <div className="flex-grow overflow-auto bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4 font-mono text-xs text-green-400 relative">
+              <pre className="whitespace-pre-wrap select-all">{generatedCode}</pre>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-auto">
+              <button 
+                onClick={() => setIsCodeModalOpen(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 px-4 rounded-lg text-sm transition-colors cursor-pointer"
+              >
+                Fechar
+              </button>
+              <button 
+                onClick={handleCopyCode}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-5 rounded-lg text-sm transition-colors cursor-pointer flex items-center space-x-1.5 shadow-md"
+              >
+                {copiedCode ? <Check size={16} /> : <Copy size={16} />}
+                <span>{copiedCode ? "Copiado!" : "Copiar Código"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
