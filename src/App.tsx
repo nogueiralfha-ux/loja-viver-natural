@@ -214,23 +214,48 @@ export default function App() {
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const cartTotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-  // Lógica para verificar Frete Grátis (3 ou mais frascos)
-  const qualifiesForFreeShipping = cartItems.some(item => {
-    if ([2, 3, 4, 15].includes(item.id)) return true; // Kits já são 3, 5, 6 ou 7 frascos
-    if (item.id === 1 && item.quantity >= 3) return true; // 3 unidades individuais
-    return false;
-  });
+  // Helper to count physical units in the cart
+  const checkFreeShippingForCart = (items: any[]) => {
+    const totalUnits = items.reduce((acc, item) => {
+      if (item.category === "Produto Digital") return acc;
+      let baseUnits = 1;
+      if (item.id === 2 || item.id === 7) baseUnits = 3;
+      else if (item.id === 3) baseUnits = 5;
+      else if (item.id === 4) baseUnits = 6;
+      else if (item.id === 15) baseUnits = 9;
+      else if (item.name.toLowerCase().includes("3 frascos") || item.name.toLowerCase().includes("3 unidades")) baseUnits = 3;
+      else if (item.name.toLowerCase().includes("5 frascos") || item.name.toLowerCase().includes("5 unidades")) baseUnits = 5;
+      else if (item.name.toLowerCase().includes("6 frascos") || item.name.toLowerCase().includes("6 unidades")) baseUnits = 6;
+      else if (item.name.toLowerCase().includes("9 frascos") || item.name.toLowerCase().includes("9 unidades")) baseUnits = 9;
+      return acc + (baseUnits * item.quantity);
+    }, 0);
+    const onlyDigital = items.length > 0 && items.every(item => item.category === "Produto Digital");
+    return onlyDigital || totalUnits >= 3;
+  };
 
-  const finalTotal = cartTotal + shipping.cost;
+  // Lógica para verificar Frete Grátis (3 ou mais unidades físicas no total, ou apenas itens digitais)
+  const qualifiesForFreeShipping = checkFreeShippingForCart(cartItems);
+
+  const finalTotal = cartTotal + (qualifiesForFreeShipping ? 0 : shipping.cost);
 
   // Função para adicionar ao carrinho real
   const addToCart = (product: any) => {
     setCartItems(prev => {
       const existing = prev.find(item => item.id === product.id);
+      let newCart;
       if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        newCart = prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      } else {
+        newCart = [...prev, { ...product, quantity: 1 }];
       }
-      return [...prev, { ...product, quantity: 1 }];
+
+      // Recalcula o frete se já estiver calculado
+      if (shipping.isCalculated) {
+        const free = checkFreeShippingForCart(newCart);
+        setShipping(s => ({ ...s, cost: free ? 0 : 25.50 }));
+      }
+
+      return newCart;
     });
     
     setNotification(`${product.name} adicionado ao carrinho!`);
@@ -254,11 +279,7 @@ export default function App() {
 
       // Recalcula o frete se já estiver calculado
       if (shipping.isCalculated) {
-        const free = newCart.some(item => {
-          if ([2, 3, 4, 15].includes(item.id)) return true;
-          if (item.id === 1 && item.quantity >= 3) return true;
-          return false;
-        });
+        const free = checkFreeShippingForCart(newCart);
         setShipping(s => ({ ...s, cost: free ? 0 : 25.50 }));
       }
 
@@ -272,11 +293,7 @@ export default function App() {
       
       // Recalcula o frete se já estiver calculado
       if (shipping.isCalculated) {
-        const free = newCart.some(item => {
-          if ([2, 3, 4, 15].includes(item.id)) return true;
-          if (item.id === 1 && item.quantity >= 3) return true;
-          return false;
-        });
+        const free = checkFreeShippingForCart(newCart);
         setShipping(s => ({ ...s, cost: free ? 0 : 25.50 }));
       }
       
@@ -296,7 +313,20 @@ export default function App() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      // Se alterou o CEP no formulário do checkout e tem pelo menos 8 dígitos, calcula o frete automaticamente
+      if (name === 'cep' && value.replace(/\D/g, '').length >= 8) {
+        setShipping(s => ({
+          ...s,
+          cep: value,
+          cost: qualifiesForFreeShipping ? 0 : 25.50,
+          isCalculated: true
+        }));
+      }
+      return updated;
+    });
   };
 
   const handleFinalizeCheckout = (e: React.FormEvent) => {
@@ -400,7 +430,7 @@ export default function App() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex space-x-8">
-              <a href="#home" className="text-slate-600 hover:text-green-600 font-medium transition-colors">Início</a>
+              <a href="#home" className="text-slate-600 hover:text-green-600 font-medium transition-colors">Home</a>
               <a href="#produtos" className="text-slate-600 hover:text-green-600 font-medium transition-colors">Produtos</a>
               <a href="#beneficios" className="text-slate-600 hover:text-green-600 font-medium transition-colors">Por que Natural?</a>
               <a href="#contato" className="text-slate-600 hover:text-green-600 font-medium transition-colors">Contato</a>
@@ -434,7 +464,7 @@ export default function App() {
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-slate-100">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              <a href="#home" className="block px-3 py-2 text-base font-medium text-slate-700 hover:text-green-600 hover:bg-slate-50 rounded-md">Início</a>
+              <a href="#home" className="block px-3 py-2 text-base font-medium text-slate-700 hover:text-green-600 hover:bg-slate-50 rounded-md">Home</a>
               <a href="#produtos" className="block px-3 py-2 text-base font-medium text-slate-700 hover:text-green-600 hover:bg-slate-50 rounded-md">Produtos</a>
               <a href="#beneficios" className="block px-3 py-2 text-base font-medium text-slate-700 hover:text-green-600 hover:bg-slate-50 rounded-md">Por que Natural?</a>
               <a href="#contato" className="block px-3 py-2 text-base font-medium text-slate-700 hover:text-green-600 hover:bg-slate-50 rounded-md">Contato</a>
@@ -689,7 +719,7 @@ export default function App() {
           <div>
             <h4 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">Links Rápidos</h4>
             <ul className="space-y-2">
-              <li><a href="#home" className="hover:text-green-400 transition-colors">Início</a></li>
+              <li><a href="#home" className="hover:text-green-400 transition-colors">Home</a></li>
               <li><a href="#produtos" className="hover:text-green-400 transition-colors">Produtos</a></li>
               <li><a href="#beneficios" className="hover:text-green-400 transition-colors">Sobre Nós</a></li>
             </ul>
